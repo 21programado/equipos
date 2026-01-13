@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Registro de Materiales</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f77f00">
+
+<style>
+:root{
+  --c1:#fcad56;
+  --c2:#f77f00;
+  --c3:#dd7500;
+  --bg:#f4f6f8;
+  --card:#ffffff;
+  --txt:#222;
+  --muted:#666;
+}
+*{ box-sizing:border-box }
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+  background:var(--bg);
+  color:var(--txt);
+}
+.container{
+  max-width:1200px;
+  margin:30px auto;
+  padding:20px;
+}
+.card{
+  background:var(--card);
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,.06);
+}
+h1,h2{ margin-top:0 }
+h1{ font-size:26px }
+h2{ font-size:20px; color:var(--c3) }
+label{ font-weight:600; font-size:14px }
+input,select,textarea{
+  width:100%;
+  padding:10px;
+  margin-top:4px;
+  margin-bottom:14px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:14px;
+}
+textarea{ resize:vertical }
+button{
+  background:var(--c2);
+  border:none;
+  color:#fff;
+  padding:10px 16px;
+  border-radius:8px;
+  font-weight:600;
+  cursor:pointer;
+}
+button:hover{ background:var(--c3) }
+button.secondary{ background:#aaa }
+button.danger{ background:#c0392b }
+button.danger:hover{ background:#a93226 }
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+th,td{
+  border-bottom:1px solid #ddd;
+  padding:8px;
+  vertical-align:top;
+}
+th{ background:var(--c1) }
+.actions button{
+  padding:6px 10px;
+  font-size:13px;
+  margin-bottom:4px;
+}
+.range{
+  display:flex;
+  gap:12px;
+  align-items:end;
+  flex-wrap:wrap;
+}
+.range > div{
+  flex:1;
+  min-width:160px;
+}
+small{ color:var(--muted) }
+.comment-block{
+  white-space:pre-line;
+  font-size:13px;
+}
+.footer-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+</style>
+</head>
+
+<body>
+
+<div id="app" style="display:none">
+<div class="container">
+
+<div class="card">
+<h1>Entrega y Devolución de Equipos y Materiales</h1>
+
+<form id="formRegistro">
+<label>Nombre</label>
+<input id="nombre" required>
+
+<label>Cargo</label>
+<select id="cargo">
+<option>Auxiliar de Enfermería</option>
+<option>Licenciada en Enfermería</option>
+<option>Practicante Interno</option>
+<option>Médico</option>
+<option>ASG</option>
+<option>Vigliancia</option>
+<option>Ascensorista</option>
+<option>Otro</option>
+</select>
+
+<label>Equipo</label>
+<select id="equipo">
+<option>Monitor 1</option>
+<option>Monitor 2</option>
+<option>ECG</option>
+<option>Saturómetro</option>
+<option>Valija de traslado</option>
+<option>Otoscopio</option>
+<option>HGT A</option>
+<option>HGT B</option>
+<option>HGT C</option>
+<option>Videolaringoscopio</option>
+<option>Otro</option>
+</select>
+
+<label>Comentario (opcional)</label>
+<textarea id="comentario"></textarea>
+
+<button type="submit">Registrar entrega</button>
+</form>
+</div>
+
+<div class="card">
+<h2>Historial</h2>
+
+<table>
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Hora</th>
+<th>Nombre</th>
+<th>Cargo</th>
+<th>Equipo</th>
+<th>Entrega</th>
+<th>Devolución</th>
+<th>Comentario</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<div class="card">
+<h2>Generar PDF</h2>
+<div class="range">
+<div>
+<label>Desde</label>
+<input type="date" id="desde">
+</div>
+<div>
+<label>Hasta</label>
+<input type="date" id="hasta">
+</div>
+<div>
+<button onclick="generarPDF()">Generar PDF</button>
+</div>
+</div>
+</div>
+
+<div class="card">
+<h2>Respaldo y mantenimiento</h2>
+<div class="footer-actions">
+<button onclick="exportar()">Descargar JSON</button>
+<input type="file" onchange="importar(event)">
+<button class="danger" onclick="limpiarHistorial()">Limpiar historial</button>
+</div>
+<small>Importar reemplaza todos los datos. Limpiar historial es irreversible.</small>
+</div>
+
+</div>
+</div>
+
+<script>
+/* ===== CLAVE ===== */
+(function(){
+  const clave = localStorage.getItem("clave_app");
+  if(!clave){
+    const nueva = prompt("Crear clave de acceso");
+    if(!nueva){
+      alert("Debe crear una clave para usar la aplicación");
+      location.reload();
+      return;
+    }
+    localStorage.setItem("clave_app", nueva);
+  }else{
+    const ingreso = prompt("Ingrese la clave");
+    if(ingreso !== clave){
+      alert("Clave incorrecta");
+      location.reload();
+      return;
+    }
+  }
+  document.getElementById("app").style.display="block";
+})();
+
+/* ===== DATOS ===== */
+let registros = JSON.parse(localStorage.getItem("registros") || "[]");
+const tbody = document.getElementById("tbody");
+
+function guardar(){
+  localStorage.setItem("registros", JSON.stringify(registros));
+}
+
+function ahora(){
+  const d = new Date();
+  const fecha =
+    d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
+
+  const hora =
+    String(d.getHours()).padStart(2,"0") + ":" +
+    String(d.getMinutes()).padStart(2,"0");
+
+  return { fecha, hora };
+}
+
+/* ===== RENDER (INVERSO EN PANTALLA) ===== */
+function render(){
+  tbody.innerHTML="";
+  for(let i = registros.length - 1; i >= 0; i--){
+    const r = registros[i];
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+<td>${r.fecha}</td>
+<td>${r.hora}</td>
+<td>${r.nombre}</td>
+<td>${r.cargo}</td>
+<td>${r.equipo}</td>
+<td>${r.entrega}</td>
+<td>${r.devolucion || "Pendiente"}</td>
+<td class="comment-block">${r.comentario || ""}</td>
+<td class="actions">
+${!r.devolucion ? `<button onclick="devolver(${i})">Devolver</button>` : ""}
+<button class="secondary" onclick="agregarComentario(${i})">Comentario</button>
+</td>`;
+    tbody.appendChild(tr);
+  }
+}
+render();
+
+/* ===== ENTREGA ===== */
+formRegistro.onsubmit=e=>{
+  e.preventDefault();
+  if(!confirm("¿Confirma entrega?")) return;
+
+  const t=ahora();
+  const texto = comentario.value.trim()
+    ? `[${t.fecha} ${t.hora}] ${comentario.value.trim()}`
+    : "";
+
+  registros.push({
+    fecha:t.fecha,
+    hora:t.hora,
+    nombre:nombre.value,
+    cargo:cargo.value,
+    equipo:equipo.value,
+    entrega:`${t.fecha} ${t.hora}`,
+    devolucion:"",
+    comentario:texto
+  });
+
+  guardar();
+  render();
+  e.target.reset();
+};
+
+/* ===== DEVOLUCIÓN ===== */
+function devolver(i){
+  if(!confirm("¿Confirma devolución?")) return;
+  const t=ahora();
+  registros[i].devolucion = `${t.fecha} ${t.hora}`;
+  guardar();
+  render();
+}
+
+/* ===== COMENTARIO ===== */
+function agregarComentario(i){
+  const texto = prompt("Ingrese el comentario");
+  if(!texto) return;
+  const t=ahora();
+  const linea = `[${t.fecha} ${t.hora}] ${texto}`;
+  registros[i].comentario = registros[i].comentario
+    ? registros[i].comentario + "\n" + linea
+    : linea;
+  guardar();
+  render();
+}
+
+/* ===== PDF ===== */
+function generarPDF(){
+  const d = desde.value;
+  const h = hasta.value;
+  if(!d || !h){
+    alert("Seleccione un rango válido");
+    return;
+  }
+  const datos = registros.filter(r => r.fecha >= d && r.fecha <= h);
+  if(!datos.length){
+    alert("No hay registros para ese rango");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("l","mm","a4");
+  let y = 10;
+  pdf.setFontSize(14);
+  pdf.text(`Historial de Materiales (${d} a ${h})`,10,y);
+  y+=10;
+  pdf.setFontSize(10);
+
+  datos.forEach(r=>{
+    const texto =
+`${r.fecha} ${r.hora} | ${r.nombre} | ${r.cargo} | ${r.equipo}
+Entrega: ${r.entrega}
+Devolución: ${r.devolucion || "Pendiente"}
+${r.comentario || ""}`;
+
+    const lineas = pdf.splitTextToSize(texto,270);
+    if(y + lineas.length * 6 > 190){
+      pdf.addPage();
+      y = 10;
+    }
+    pdf.text(lineas,10,y);
+    y += lineas.length * 6 + 4;
+  });
+
+  pdf.save(`historial_${d}_a_${h}.pdf`);
+}
+
+/* ===== LIMPIAR HISTORIAL ===== */
+function limpiarHistorial(){
+  if(!registros.length){
+    alert("El historial ya está vacío");
+    return;
+  }
+  const ok = confirm(
+    "¿Está seguro de borrar el historial?\n\n" +
+    "Asegúrese de haber guardado el PDF y/o el respaldo JSON.\n" +
+    "Esta acción no se puede deshacer."
+  );
+  if(!ok) return;
+
+  registros = [];
+  guardar();
+  render();
+}
+
+/* ===== RESPALDO ===== */
+function exportar(){
+  const blob=new Blob([JSON.stringify(registros,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="respaldo_materiales.json";
+  a.click();
+}
+
+function importar(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  if(!confirm("Esto reemplazará todos los datos actuales")) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    registros=JSON.parse(r.result);
+    guardar();
+    render();
+  };
+  r.readAsText(f);
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+</script>
+ 
+</body>
+</html>
+
