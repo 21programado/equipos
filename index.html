@@ -103,6 +103,17 @@ small{ color:var(--muted) }
   gap:10px;
   flex-wrap:wrap;
 }
+.info-tooltip{
+  background:#fff6e5;
+  border-left:4px solid var(--c2);
+  color:#444;
+  padding:10px 12px;
+  border-radius:8px;
+  font-size:13px;
+  margin-bottom:14px;
+  line-height:1.4;
+}
+
 </style>
 </head>
 
@@ -175,6 +186,9 @@ small{ color:var(--muted) }
 
 <div class="card">
 <h2>Generar PDF</h2>
+<div class="info-tooltip">
+  ℹ️ <strong>Acción recomendada:</strong> generar PDF de los movimiento del día a la hora 23.
+</div>
 <div class="range">
 <div>
 <label>Desde</label>
@@ -410,4 +424,5 @@ if ('serviceWorker' in navigator) {
  
 </body>
 </html>
+
 
